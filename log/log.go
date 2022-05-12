@@ -278,3 +278,12 @@ func NewLogger(w io.Writer, prefix string) *Logger {
 	}
 	return &Logger{_log: log.New(w, prefix, LstdFlags), level: level, highlighting: true}
 }
+
+const Debugg = 1
+
+func DPrintf(format string, a ...interface{}) (n int, err error) {
+	if Debugg > 0 {
+		log.Printf(format, a...)
+	}
+	return
+}
