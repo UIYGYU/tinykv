@@ -50,6 +50,9 @@ func (d *peerMsgHandler) HandleRaftReady() {
 		return
 	}
 	rd := d.RaftGroup.Ready()
+	//if rd.Entries[len(rd.Entries)-1].Index < d.RaftGroup.Raft.RaftLog.LastIndex() {
+	//	return
+	//}
 	_, err := d.peerStorage.SaveReadyState(&rd)
 	if err != nil {
 		return
@@ -65,8 +68,6 @@ func (d *peerMsgHandler) HandleRaftReady() {
 		d.peerStorage.applyState.AppliedIndex = rd.CommittedEntries[len(rd.CommittedEntries)-1].Index
 		kvWB.SetMeta(meta.ApplyStateKey(d.Region().Id), d.peerStorage.applyState)
 		kvWB.WriteToDB(d.peerStorage.Engines.Kv)
-		//log.DPrintf("length%d", len(rd.CommittedEntries))
-		log.DPrintf("applystatekey %d", rd.CommittedEntries[len(rd.CommittedEntries)-1].Index)
 	}
 	d.RaftGroup.Advance(rd)
 }

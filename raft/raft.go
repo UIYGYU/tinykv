@@ -16,7 +16,6 @@ package raft
 
 import (
 	"errors"
-
 	pb "github.com/pingcap-incubator/tinykv/proto/pkg/eraftpb"
 	"math/rand"
 	"sort"
@@ -173,6 +172,10 @@ func newRaft(c *Config) *Raft {
 		panic(err.Error())
 	}
 	// Your Code Here (2A).
+	hs, cs, _ := c.Storage.InitialState()
+	if c.peers == nil {
+		c.peers = cs.Nodes
+	}
 	peers := c.peers
 	votes := map[uint64]bool{}
 	votes2 := map[uint64]bool{}
@@ -204,7 +207,6 @@ func newRaft(c *Config) *Raft {
 	for _, p := range peers {
 		r.Prs[p] = &Progress{Next: 1}
 	}
-	hs, _, _ := c.Storage.InitialState()
 	if !isHardStateEqual(hs, pb.HardState{}) {
 		r.RaftLog.committed = hs.Commit
 		r.Vote = hs.Vote
@@ -254,7 +256,8 @@ func (r *Raft) sendAppend(to uint64) bool {
 // sendHeartbeat sends a heartbeat RPC to the given peer.
 func (r *Raft) sendHeartbeat(to uint64) {
 	// Your Code Here (2A).
-	r.msgs = append(r.msgs, pb.Message{MsgType: pb.MessageType_MsgHeartbeat, From: r.id, To: to, Term: r.Term, Commit: r.RaftLog.committed})
+	committo := min(r.RaftLog.committed, r.Prs[to].Match)
+	r.msgs = append(r.msgs, pb.Message{MsgType: pb.MessageType_MsgHeartbeat, From: r.id, To: to, Term: r.Term, Commit: committo})
 }
 
 // tick advances the internal logical clock by a single tick.
@@ -533,6 +536,9 @@ func (r *Raft) handleAppendEntries(m pb.Message) {
 func (r *Raft) handleHeartbeat(m pb.Message) {
 	// Your Code Here (2A).
 	r.electionElapsed = 0
+	if m.Commit > r.RaftLog.committed {
+		r.RaftLog.committed = m.Commit
+	}
 	r.msgs = append(r.msgs, pb.Message{MsgType: pb.MessageType_MsgHeartbeatResponse, From: r.id, To: m.From})
 }
 
